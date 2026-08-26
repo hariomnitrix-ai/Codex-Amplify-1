@@ -1,0 +1,3 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs'; import YAML from 'yaml'; import {assertTargetSafe} from '../src/compliance.js'; import type {TargetConfig} from '../src/types.js';
+const target=YAML.parse(readFileSync('catalog/targets/us-public-procurement.yaml','utf8')) as TargetConfig;
+test('public procurement target is a bounded permitted POST API',()=>{assert.doesNotThrow(()=>assertTargetSafe(target));assert.equal(target.request.method,'POST');assert.equal(target.source.allowedHosts[0],'api.usaspending.gov');assert.ok(target.output.maxItemsHard<=5000);});
