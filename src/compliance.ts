@@ -1,0 +1,4 @@
+import type {Candidate,TargetConfig} from './types.js';
+export class ComplianceError extends Error {}
+export function assertCandidateCleared(c:Candidate):void { if(!c.publicOrPermitted) throw new ComplianceError('Source is not public or explicitly permitted'); if(!c.tosReviewed||!c.robotsReviewed||c.risk==='unknown'||c.risk==='high') throw new ComplianceError('Candidate requires legal/ToS review'); }
+export function assertTargetSafe(t:TargetConfig):void { if(!t.source.publicOrPermitted) throw new ComplianceError('Target permission not established'); if(!t.source.termsUrl||!t.source.reviewedAt) throw new ComplianceError('Missing compliance evidence'); if(t.request.rateLimitPerMinute>120||t.request.maxConcurrency>10) throw new ComplianceError('Unsafe default request rate'); if(t.source.allowedHosts.length===0) throw new ComplianceError('Host allowlist required'); }

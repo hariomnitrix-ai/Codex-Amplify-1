@@ -1,0 +1,31 @@
+schemaVersion: 1
+id: us-public-procurement
+title: US Public Procurement Opportunity Extractor
+description: Structured public contract opportunities for market research and supplier discovery.
+source:
+  kind: json-api
+  baseUrl: https://api.sam.gov
+  allowedHosts: [api.sam.gov]
+  publicOrPermitted: true
+  termsUrl: https://sam.gov/about/terms-of-use
+  reviewedAt: '2026-08-26'
+request:
+  startUrls: ['https://api.sam.gov/opportunities/v2/search/GET?limit=10']
+  method: GET
+  rateLimitPerMinute: 30
+  maxConcurrency: 2
+extraction:
+  fields: {noticeId: noticeId, title: title, department: fullParentPathName, postedDate: postedDate, responseDeadline: responseDeadLine, link: uiLink}
+  identityFields: [noticeId]
+output: {maxItemsDefault: 100, maxItemsHard: 5000}
+pricing:
+  events:
+    - {name: apify-default-dataset-item, title: Procurement result, priceUsd: 0.003, unit: result, description: One normalized opportunity}
+seo:
+  keywords: [government contracts, procurement opportunities, supplier research]
+  buyer: sales, procurement, and market-intelligence teams
+compliance:
+  personalData: false
+  licenseNotes: Public federal procurement metadata; verify downstream reuse requirements.
+  retentionDays: 30
+fixtures: [fixtures/sam-sample.json]

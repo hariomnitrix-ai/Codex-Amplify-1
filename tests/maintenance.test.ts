@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {classifyFailure} from '../src/maintenance.js';test('detects blocked target',()=>assert.equal(classifyFailure('403 CAPTCHA'),'target_blocked'));test('detects drift',()=>assert.equal(classifyFailure('missing field after selector change'),'schema_drift'));

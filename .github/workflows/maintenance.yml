@@ -1,0 +1,19 @@
+name: catalog-maintenance
+on:
+  schedule: [{cron: '17 8 * * *'}]
+  workflow_dispatch:
+permissions: {contents: read, issues: write}
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Staging health checks
+        if: ${{ secrets.APIFY_TOKEN != '' }}
+        env: {APIFY_TOKEN: '${{ secrets.APIFY_TOKEN }}', FACTORY_DRY_RUN: 'true'}
+        run: echo 'Connect catalog-specific health runner after private staging actors exist.'
