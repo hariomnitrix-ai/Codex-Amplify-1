@@ -1,0 +1,46 @@
+name: private-actor-stage
+on:
+  workflow_dispatch:
+    inputs:
+      max_items:
+        description: Small bounded smoke-run size
+        required: false
+        default: '3'
+permissions: {contents: read}
+jobs:
+  deploy-and-smoke-test:
+    runs-on: ubuntu-latest
+    environment: apify-private-staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: node dist/src/cli.js generate --target catalog/targets/us-public-procurement.yaml
+      - run: node dist/src/cli.js validate --actor generated/us-public-procurement
+      - name: Push private Actor and wait for build
+        id: push
+        uses: apify/push-actor-action@v1
+        with:
+          token: ${{ secrets.APIFY_TOKEN }}
+          working-directory: generated/us-public-procurement
+      - name: Small staging run and dataset validation
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          BUILD_ID: ${{ steps.push.outputs.build-id }}
+          MAX_ITEMS: ${{ inputs.max_items }}
+        run: |
+          set -euo pipefail
+          test -n "$BUILD_ID"
+          build_json=$(curl --fail --silent --show-error "https://api.apify.com/v2/actor-builds/${BUILD_ID}" --header "Authorization: Bearer ${APIFY_TOKEN}")
+          actor_id=$(node -e 'const x=JSON.parse(process.argv[1]).data;if(x.status!=="SUCCEEDED")throw Error(`Build status: ${x.status}`);if(!x.actorId)throw Error("Build has no Actor ID");console.log(x.actorId)' "$build_json")
+          actor_json=$(curl --fail --silent --show-error "https://api.apify.com/v2/acts/${actor_id}" --header "Authorization: Bearer ${APIFY_TOKEN}")
+          node -e 'const x=JSON.parse(process.argv[1]).data;if(x.isPublic)throw Error("Actor must remain private")' "$actor_json"
+          run_json=$(curl --fail --silent --show-error --request POST "https://api.apify.com/v2/acts/${actor_id}/runs?waitForFinish=120" --header "Authorization: Bearer ${APIFY_TOKEN}" --header 'Content-Type: application/json' --data "{\"maxItems\":${MAX_ITEMS}}")
+          node -e 'const x=JSON.parse(process.argv[1]).data;if(x.status!=="SUCCEEDED")throw Error(`Run status: ${x.status}`);if(!x.defaultDatasetId)throw Error("No default dataset");console.log(x.defaultDatasetId)' "$run_json" > dataset-id.txt
+          dataset_id=$(cat dataset-id.txt)
+          curl --fail --silent --show-error "https://api.apify.com/v2/datasets/${dataset_id}/items?clean=true" --header "Authorization: Bearer ${APIFY_TOKEN}" > output.json
+          node -e 'const rows=require("./output.json");if(!Array.isArray(rows)||rows.length<1)throw Error("No extracted records");for(const x of rows){for(const k of ["awardId","recipient","amountUsd","startDate","awardingAgency"]){if(x[k]===undefined||x[k]===null||x[k]==="")throw Error(`Invalid output: missing ${k}`)}}if(new Set(rows.map(x=>x.awardId)).size!==rows.length)throw Error("Duplicate award IDs")'
+          node -e 'const run=JSON.parse(process.argv[1]).data, actorId=process.argv[2], rows=require("./output.json");require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Private staging result\\n\\n- Actor: ${actorId} (private)\\n- Records extracted: ${rows.length}\\n- Estimated run cost: $${run.usageTotalUsd ?? "unavailable"}\\n`) ' "$run_json" "$actor_id"
