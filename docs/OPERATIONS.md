@@ -22,3 +22,7 @@
 ## Publication checklist
 
 Passing tests, successful staging run, sample output inspection, cost and PPE margin test, README/schema completeness, compliance review, rollback build, and a signed unexpired approval matching the exact target config hash.
+
+## Private staging deployment
+
+Use the `private-actor-stage` GitHub workflow only after adding `APIFY_TOKEN` as a repository secret and approving the `apify-private-staging` environment. It generates the tracked procurement target, pushes it to Apify, waits for the build, runs at most three records by default, then verifies successful status, non-empty output, required fields, and unique IDs. It never publishes an Actor or configures monetization.
