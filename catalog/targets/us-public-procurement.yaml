@@ -1,31 +1,39 @@
 schemaVersion: 1
 id: us-public-procurement
-title: US Public Procurement Opportunity Extractor
-description: Structured public contract opportunities for market research and supplier discovery.
+title: US Federal Contract Award Extractor
+description: Structured public federal contract awards for supplier intelligence and market research.
 source:
   kind: json-api
-  baseUrl: https://api.sam.gov
-  allowedHosts: [api.sam.gov]
+  baseUrl: https://api.usaspending.gov
+  allowedHosts: [api.usaspending.gov]
   publicOrPermitted: true
-  termsUrl: https://sam.gov/about/terms-of-use
+  termsUrl: https://api.usaspending.gov/docs/endpoints
   reviewedAt: '2026-08-26'
 request:
-  startUrls: ['https://api.sam.gov/opportunities/v2/search/GET?limit=10']
-  method: GET
+  startUrls: ['https://api.usaspending.gov/api/v2/search/spending_by_award/']
+  method: POST
+  body:
+    fields: ['Award ID', 'Recipient Name', 'Award Amount', 'Start Date', 'Awarding Agency']
+    filters:
+      time_period: [{start_date: '2026-01-01', end_date: '2026-08-26'}]
+      award_type_codes: ['A', 'B', 'C', 'D']
+    limit: 10
+    page: 1
+    subawards: false
   rateLimitPerMinute: 30
   maxConcurrency: 2
 extraction:
-  fields: {noticeId: noticeId, title: title, department: fullParentPathName, postedDate: postedDate, responseDeadline: responseDeadLine, link: uiLink}
-  identityFields: [noticeId]
+  fields: {awardId: 'Award ID', recipient: 'Recipient Name', amountUsd: 'Award Amount', startDate: 'Start Date', awardingAgency: 'Awarding Agency'}
+  identityFields: [awardId]
 output: {maxItemsDefault: 100, maxItemsHard: 5000}
 pricing:
   events:
     - {name: apify-default-dataset-item, title: Procurement result, priceUsd: 0.003, unit: result, description: One normalized opportunity}
 seo:
-  keywords: [government contracts, procurement opportunities, supplier research]
+  keywords: [federal contract awards, procurement data, supplier research]
   buyer: sales, procurement, and market-intelligence teams
 compliance:
   personalData: false
-  licenseNotes: Public federal procurement metadata; verify downstream reuse requirements.
+  licenseNotes: Public federal spending data. Verify downstream use requirements before publication.
   retentionDays: 30
-fixtures: [fixtures/sam-sample.json]
+fixtures: [fixtures/usaspending-awards-sample.json]
